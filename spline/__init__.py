@@ -19,32 +19,9 @@
  This script initializes the plugin, making it known to QGIS.
 """
 
-
-def name():
-    return "Spline"
-
-
-def description():
-    return "Digitize spline curves"
-
-
-def version():
-    return "Version 0.1"
-
-
 def icon():
     return "icon.png"
 
-
-def qgisMinimumVersion():
-    return "2.0"
-
-def author():
-    return "Radim Blazek"
-
-def email():
-    return "radim.blazek@gmail.com"
-
 def classFactory(iface):
-    from splineplugin import SplinePlugin
+    from .splineplugin import SplinePlugin
     return SplinePlugin(iface)

@@ -18,14 +18,15 @@
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 from qgis.core import *
 from qgis.gui import *
 
-from utils import *
+from .utils import *
 
-from ui_settingsdialog import Ui_SettingsDialog
+from .ui_settingsdialog import Ui_SettingsDialog
 
 class SettingsDialog( QDialog, Ui_SettingsDialog ):
     changed = pyqtSignal(name = 'changed')

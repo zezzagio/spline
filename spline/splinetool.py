@@ -1,14 +1,15 @@
 # -*- coding: latin1 -*-
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import * 
 from qgis.core import *
 
 # Initialize Qt resources from file resources.py
 #from cadtools import resources
 
 #Import own classes and tools
-from spline import Spline
+from .spline import Spline
 
 class SplineTool():
     
@@ -55,7 +56,7 @@ class SplineTool():
             layer = self.canvas.currentLayer()
             if layer is None: return None
             if layer.type() != QgsMapLayer.VectorLayer: return None
-            if not layer.geometryType() in [ QGis.Line, QGis.Polygon ]: return None
+            if not layer.geometryType() in [ QgsWkbTypes.LineGeometry, QgsWkbTypes.PolygonGeometry ]: return None
             return layer
  
         def enableAction(self):

@@ -46,41 +46,42 @@ default: compile
 compile: $(UI_FILES) $(RESOURCE_FILES) 
 
 %_rc.py : %.qrc $(EXTRAS)
-	pyrcc4 -o $*_rc.py  $<
+	pyrcc5 -o $*_rc.py  $<
 
 %.py : %.ui
-	pyuic4 -o $@ $<
+	pyuic5 -o $@ $<
 
 %.qm : %.ts
 	lrelease $<
 
 # The deploy  target only works on unix like operating system where
 # the Python plugin directory is located at:
-# $HOME/.qgis2/python/plugins
-deploy: compile doc transcompile
-	mkdir -p $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
-	cp -vf $(PY_FILES) $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
-	cp -vf $(UI_FILES) $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
-	cp -vf $(RESOURCE_FILES) $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
-	cp -vf $(EXTRAS) $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
-	cp -vfr i18n $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
-	cp -vfr $(HELP) $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)/help
+# $HOME/.local/share/QGIS/QGIS3/profiles/default/python/plugins
+DEPLOY_PATH = $(HOME)/.local/share/QGIS/QGIS3/profiles/default/python/plugins
+deploy: compile transcompile
+	mkdir -p $(DEPLOY_PATH)/$(PLUGINNAME)
+	cp -vf $(PY_FILES) $(DEPLOY_PATH)/$(PLUGINNAME)
+	cp -vf $(UI_FILES) $(DEPLOY_PATH)/$(PLUGINNAME)
+	cp -vf $(RESOURCE_FILES) $(DEPLOY_PATH)/$(PLUGINNAME)
+	cp -vf $(EXTRAS) $(DEPLOY_PATH)/$(PLUGINNAME)
+	#cp -vfr i18n $(DEPLOY_PATH)/$(PLUGINNAME)
+	cp -vfr $(HELP) $(DEPLOY_PATH)/$(PLUGINNAME)/help
 
 # The dclean target removes compiled python files from plugin directory
 # also delets any .svn entry
 dclean:
-	find $(HOME)/.qgis2/python/plugins/$(PLUGINNAME) -iname "*.pyc" -delete
-	find $(HOME)/.qgis2/python/plugins/$(PLUGINNAME) -iname ".svn" -prune -exec rm -Rf {} \;
+	find $(DEPLOY_PATH)/$(PLUGINNAME) -iname "*.pyc" -delete
+	find $(DEPLOY_PATH)/$(PLUGINNAME) -iname ".svn" -prune -exec rm -Rf {} \;
 
 # The derase deletes deployed plugin
 derase:
-	rm -Rf $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)
+	rm -Rf $(DEPLOY_PATH)/$(PLUGINNAME)
 
 # The zip target deploys the plugin and creates a zip file with the deployed
 # content. You can then upload the zip file on http://plugins.qgis.org
 zip: deploy dclean 
 	rm -f $(PLUGINNAME).zip
-	cd $(HOME)/.qgis2/python/plugins; zip -9r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME)
+	cd $(DEPLOY_PATH); zip -9r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME)
 
 # Create a zip package of the plugin named $(PLUGINNAME).zip. 
 # This requires use of git (your plugin development directory must be a 
@@ -114,7 +115,7 @@ upload: zip
 # transup
 # update .ts translation files
 transup:
-	pylupdate4 Makefile
+	pylupdate5 Makefile
 
 # transcompile
 # compile translation files into .qm binary format

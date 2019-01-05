@@ -18,22 +18,22 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 import math
 
-from utils import *
+from .utils import *
 
 class Spline(QgsMapTool):
     def __init__(self, iface):
         self.iface = iface
         self.canvas = self.iface.mapCanvas()
         QgsMapTool.__init__(self,self.canvas)
-        self.rb = QgsRubberBand(self.canvas,  QGis.Polygon)
+        self.rb = QgsRubberBand(self.canvas,  QgsWkbTypes.PolygonGeometry)
         self.points = [] # digitized, not yet interpolated points
-        self.type = QGis.Polygon # layer geometry type
+        self.type = QgsWkbTypes.PolygonGeometry # layer geometry type
 
         self.cursor = QCursor(QPixmap(["16 16 3 1",
                                       "      c None",
@@ -67,27 +67,36 @@ class Spline(QgsMapTool):
         y = event.pos().y()
         
         if event.button() == Qt.LeftButton:
-            
-            ## This is the same as in the canvasMoveEvent.
-            ## Is there an easier way??? Or  more logical way?
-            startingPoint = QPoint(x,y)
-            snapper = QgsMapCanvasSnapper(self.canvas)
-            
-            (retval,result) = snapper.snapToCurrentLayer (startingPoint, QgsSnapper.SnapToVertex)   
-            if result <> []:
-                point = QgsPoint( result[0].snappedVertex )
+            if QgsApplication.keyboardModifiers() == Qt.ControlModifier:
+                del self.points[-1]
+                points = self.interpolate ( self.points )
+                self.setRubberBandPoints(points )
             else:
-                (retval,result) = snapper.snapToBackgroundLayers(startingPoint)
-                if result <> []:
-                    point = QgsPoint( result[0].snappedVertex )
-                else:
-                    point = self.canvas.getCoordinateTransform().toMapCoordinates( event.pos().x(), event.pos().y() );
-            
-            #self.rb.addPoint(point)
-            
-            self.points.append(point)
-            points = self.interpolate ( self.points )
-            self.setRubberBandPoints(points )
+                ## This is the same as in the canvasMoveEvent.
+                ## Is there an easier way??? Or  more logical way?
+                startingPoint = QPoint(x,y)
+                snapper = self.canvas.snappingUtils()
+
+#                 (retval,result) = snapper.snapToCurrentLayer (startingPoint, QgsSnapper.SnapToVertex)   
+#                 if not result:
+#                     point = QgsPoint( result[0].snappedVertex )
+#                 else:
+#                     (retval,result) = snapper.snapToBackgroundLayers(startingPoint)
+#                     if not result:
+#                         point = QgsPoint( result[0].snappedVertex )
+#                     else:
+#                         point =
+#                         self.canvas.getCoordinateTransform().toMapCoordinates( event.pos().x(), event.pos().y() );
+
+                point = self.canvas.getCoordinateTransform().toMapCoordinates( event.pos().x(), event.pos().y() );
+                
+
+                #self.rb.addPoint(point)
+
+                self.points.append(QgsPointXY(point[0], point[1]))
+                
+                points = self.interpolate ( self.points )
+                self.setRubberBandPoints(points )
 
         else:
             if len( self.points ) >= 2:
@@ -107,24 +116,24 @@ class Spline(QgsMapTool):
     def createFeature(self):
         layer = self.canvas.currentLayer() 
         provider = layer.dataProvider()
-        fields = layer.pendingFields()
+        fields = layer.fields()
         f = QgsFeature(fields)
             
         coords = []
         coords = self.interpolate ( self.points )
         
-        if self.canvas.mapRenderer().hasCrsTransformEnabled() and layer.crs() != self.canvas.mapRenderer().destinationCrs():
+        if layer.crs() != self.canvas.mapSettings().destinationCrs():
             coords_tmp = coords[:]
             coords = []
             for point in coords_tmp:
-                transformedPoint = self.canvas.mapRenderer().mapToLayerCoordinates( layer, point )
+                transformedPoint = self.canvas.mapSettings().mapToLayerCoordinates( layer, point )
                 coords.append(transformedPoint)
               
         ## Add geometry to feature.
         if self.isPolygon == True:
-            g = QgsGeometry().fromPolygon([coords])
+            g = QgsGeometry().fromPolygonXY([coords])
         else:
-            g = QgsGeometry().fromPolyline(coords)
+            g = QgsGeometry().fromPolylineXY(coords)
         f.setGeometry(g)
             
         ## Add attributefields to feature.
@@ -141,11 +150,9 @@ class Spline(QgsMapTool):
             layer.endEditCommand()
         else:
             dlg = self.iface.getFeatureForm(layer, f)
-            if QGis.QGIS_VERSION_INT >= 20400: 
-                dlg.setIsAddDialog( True ) # new in 2.4, without calling that the dialog is disabled
+            #dlg.setIsAddDialog( True ) # new in 2.4, without calling that the dialog is disabled
             if dlg.exec_():
-                if QGis.QGIS_VERSION_INT < 20400: 
-                    layer.addFeature(f)
+                layer.addFeature(f)
                 layer.endEditCommand()
             else:
                 layer.destroyEditCommand()
@@ -155,23 +162,25 @@ class Spline(QgsMapTool):
         y = event.pos().y()
         
         startingPoint = QPoint(x,y)
-        snapper = QgsMapCanvasSnapper(self.canvas)
+        snapper = self.canvas.snappingUtils()
             
         ## Try to get a point from the foreground snapper. 
         ## If we don't get one we try the backround snapper and
         ## at last we do not snap.
-        (retval,result) = snapper.snapToCurrentLayer (startingPoint,QgsSnapper.SnapToVertex)   
-        if result <> []:
-            point = QgsPoint( result[0].snappedVertex )
-        else:
-            (retval,result) = snapper.snapToBackgroundLayers(startingPoint)
-            if result <> []:
-                point = QgsPoint( result[0].snappedVertex )
-            else:
-                point = self.canvas.getCoordinateTransform().toMapCoordinates( event.pos().x(), event.pos().y() );
+#         (retval,result) = snapper.snapToCurrentLayer (startingPoint, QgsPointLocator.Vertex, None)   
+#         if not result:
+#             point = QgsPoint( result[0].snappedVertex )
+#         else:
+#             (retval,result) = snapper.snapToBackgroundLayers(startingPoint)
+#             if not result:
+#                 point = QgsPoint( result[0].snappedVertex )
+#             else:
+#                 point = self.canvas.getCoordinateTransform().toMapCoordinates( event.pos().x(), event.pos().y() );
+                
+        point = self.canvas.getCoordinateTransform().toMapCoordinates( event.pos().x(), event.pos().y() );
             
         points = list( self.points )
-        points.append( point )
+        points.append( QgsPointXY(point[0], point[1]) )
         points = self.interpolate ( points )
         self.setRubberBandPoints(points )
 
@@ -196,7 +205,7 @@ class Spline(QgsMapTool):
         layer = mc.currentLayer()
         self.type = layer.geometryType()
         self.isPolygon = False
-        if self.type == QGis.Polygon:
+        if self.type == QgsWkbTypes.PolygonGeometry:
             self.isPolygon = True
 
     def resetRubberBand(self):
@@ -212,8 +221,7 @@ class Spline(QgsMapTool):
         # On Win7/64 it was failing if QGIS was closed with a layer opened
         # for editing with "'NoneType' object has no attribute 'Polygon'"
         # -> test QGis
-        if QGis is not None:
-            self.rb.reset(QGis.Polygon)
+        self.rb.reset(QgsWkbTypes.PolygonGeometry)
         self.points = []
         pass
 
@@ -259,7 +267,7 @@ class Spline(QgsMapTool):
             p0 = points[i]
             p1 = points[i+1]
 
-            output.append(p0)
+            output.append(QgsPointXY(p0))
 
             # It would be better to divide each segment to steps according 
             # to tolerance but how to find maximum step size for tolerance?
@@ -292,7 +300,7 @@ class Spline(QgsMapTool):
 
                 s = s+t
 
-        output.append(p1) # last point
+        output.append(QgsPointXY(p1)) # last point
 
         # now we have mix of points and point lists, we clean the lists
         # keeping the digitized points
@@ -309,20 +317,20 @@ class Spline(QgsMapTool):
         return result
 
     def simplifyPoints( self, points, tolerance):
-        geo = QgsGeometry.fromPolyline( points )
+        geo = QgsGeometry.fromPolylineXY( points )
         geo = geo.simplify( tolerance );
         return geo.asPolyline()
 
     def pointScalar( self, p, k):
-        return QgsPoint( p.x() * k, p.y() * k)
+        return QgsPointXY( p.x() * k, p.y() * k)
 
     def pointsAdd( self, p1, p2):
-        return QgsPoint( p1.x() + p2.x(), p1.y() + p2.y() )
+        return QgsPointXY( p1.x() + p2.x(), p1.y() + p2.y() )
 
     def pointsTangentScaled(self, p1, p2, k ):
         x = p2.x()-p1.x()
         y = p2.y()-p1.y()
-        return self.pointScalar( QgsPoint( x, y), k )
+        return self.pointScalar( QgsPointXY( x, y), k )
 
     def pointsDist(self, a, b):
         dx = a.x()-b.x()

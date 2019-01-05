@@ -18,16 +18,17 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import * 
 from qgis.core import *
 # Initialize Qt resources from file resources.py
-import resources_rc
+from .resources_rc import *
 import os.path
 
-from splinetool import SplineTool
+from .splinetool import SplineTool
 
-from settingsdialog import SettingsDialog
+from .settingsdialog import SettingsDialog
 
 class SplinePlugin:
 
@@ -38,7 +39,7 @@ class SplinePlugin:
         # There is bug in SIP (Transfer of QgsMapRenderer) 
         # http://lists.osgeo.org/pipermail/qgis-developer/2013-December/029816.html
         # so we have to keep reference to QgsMapRenderer
-        self.mapRenderer = iface.mapCanvas().mapRenderer()
+        self.mapSettings = iface.mapCanvas().mapSettings()
 
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
